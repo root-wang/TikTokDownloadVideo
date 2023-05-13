@@ -1,10 +1,17 @@
 /*
- * @Date: 2023-05-13 15:45:47
- * @LastEditors: root-wang && 276211640@qq.com
- * @LastEditTime: 2023-05-13 18:22:53
- * @FilePath: \TikTok\main.go
- * @Description: Do not edit
- */
+  - @Date: 2023-05-13 15:45:47
+  - @LastEditors: root-wang && 276211640@qq.com
+
+<<<<<<< HEAD
+  - @LastEditTime: 2023-05-13 19:55:29
+
+=======
+  - @LastEditTime: 2023-05-13 19:28:21
+
+>>>>>>> 61dc554 (init)
+  - @FilePath: \TikTok\main.go
+  - @Description: Do not edit
+*/
 package main
 
 import (
