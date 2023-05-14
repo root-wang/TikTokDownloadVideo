@@ -1,14 +1,7 @@
 /*
-  - @Date: 2023-05-13 15:45:47
+* @Date: 2023-05-13 15:45:47
   - @LastEditors: root-wang && 276211640@qq.com
-
-<<<<<<< HEAD
-  - @LastEditTime: 2023-05-13 19:55:29
-
-=======
-  - @LastEditTime: 2023-05-13 19:28:21
-
->>>>>>> 61dc554 (init)
+  - @LastEditTime: 2023-05-14 18:44:33
   - @FilePath: \TikTok\main.go
   - @Description: Do not edit
 */
@@ -59,7 +52,7 @@ func main() {
 			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
 		)
 		req.Header.Set("Sec-Ch-Ua-Platform", "Windows")
-		req.Header.Set("Referer", "https://www.douyin.com/")
+		req.Header.Set("Referer", "https://www.douyin.com/user/MS4wLjABAAAAfv7AYteDioF8Ts21H_GkcaXExqLqEa8l1ABiKIvX4oA?is_search=0&list_name=follow&nt=3")
 		req.Header.Set("Cookie", cookie)
 
 		h := &http.Client{}

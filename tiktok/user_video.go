@@ -13,7 +13,6 @@ type UserVideoReq struct {
 	Channel                  string `json:"channel"`
 	SecUserId                string `json:"sec_user_id"`
 	MaxCursor                string `json:"max_cursor"`
-	LocateItemId             string `json:"locate_item_id"`
 	LocateQuery              string `json:"locate_query"`
 	ShowLiveReplayStrategy   string `json:"show_live_replay_strategy"`
 	Count                    string `json:"count"`
@@ -50,8 +49,7 @@ func NewReq(secUserId string, videoCount string) string {
 		Aid:                      "6383",
 		Channel:                  "channel_pc_web",
 		SecUserId:                secUserId,
-		MaxCursor:                "1675841295000",
-		LocateItemId:             "7228875648981404989",
+		MaxCursor:                "1679800007000",
 		LocateQuery:              "false",
 		ShowLiveReplayStrategy:   "1",
 		Count:                    videoCount,
@@ -77,9 +75,9 @@ func NewReq(secUserId string, videoCount string) string {
 		Downlink:                 videoCount,
 		EffectiveType:            "4g",
 		RoundTripTime:            "100",
-		Webid:                    "7168129396141311540",
-		MsToken:                  "QvsEomOTgW-z-4zZo4LAVINy_zgDHi7iAdtbvoIvrwXBJz7wPovFfymSpXb84I0jT458-y-FTCROBmLobZGEjVDXi9q7v1oT-f0sA6EUdSN0ppias4GHvQ==",
-		XBogus:                   "DFSzswVEpbUANtX6tCFmJGXyYJAe",
+		Webid:                    "7232985271985489465",
+		MsToken:                  "HSZv7HW5SMKbSGkbRheQLWo8g2elfPZjW1l9YH1oEyhkkkdiZeY4wgInkasbEVKsf4zuwgluS9839YGX0fYL101Dd-ATKXGkaroxh5ZyRYwHHrpRVwZQbA==",
+		XBogus:                   "DFSzswVYEDTANto5ttvCdsXyYJl4",
 	}
 	var url = strings.Builder{}
 	url.WriteString("https://www.douyin.com/aweme/v1/web/aweme/post/?")
