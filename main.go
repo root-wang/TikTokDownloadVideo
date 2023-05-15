@@ -1,7 +1,7 @@
 /*
 * @Date: 2023-05-13 15:45:47
   - @LastEditors: root-wang && 276211640@qq.com
-  - @LastEditTime: 2023-05-14 18:44:33
+  - @LastEditTime: 2023-05-15 21:57:39
   - @FilePath: \TikTok\main.go
   - @Description: Do not edit
 */
@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func main() {
+func init() {
 	viper.SetConfigFile("./config.yaml") // 指定配置文件路径
 	viper.SetConfigName("config")        // 配置文件名称(无扩展名)
 	viper.SetConfigType("yaml")          // 如果配置文件的名称中没有扩展名，则需要配置此项
@@ -28,6 +28,9 @@ func main() {
 	if err != nil {                      // 处理读取配置文件的错误
 		panic(fmt.Errorf("fatal error config file: %s", err))
 	}
+}
+
+func main() {
 	secUserId := viper.Get("secUserId").([]interface{})
 	videoCount := viper.Get("video-nums").([]interface{})
 	if len(secUserId) != len(videoCount) {
@@ -45,18 +48,18 @@ func main() {
 	user_num := len(secUserId)
 
 	for i := 0; i < user_num; i++ {
-		url := tiktok.NewReq(secUserId[i].(string), videoCount[i].(string))
+		url := tiktok.UserVideos(secUserId[i].(string), videoCount[i].(string))
 		req, _ := http.NewRequest("GET", url, nil)
 		req.Header.Set(
 			"User-Agent",
 			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
 		)
-		req.Header.Set("Sec-Ch-Ua-Platform", "Windows")
-		req.Header.Set("Referer", "https://www.douyin.com/user/MS4wLjABAAAAfv7AYteDioF8Ts21H_GkcaXExqLqEa8l1ABiKIvX4oA?is_search=0&list_name=follow&nt=3")
+		req.Header.Set("Referer", "https://www.douyin.com/")
 		req.Header.Set("Cookie", cookie)
 
 		h := &http.Client{}
 		resp, _ := h.Do(req)
+		defer resp.Body.Close()
 		respStruct := &tiktok.UserVideoResp{}
 		_ = json.NewDecoder(resp.Body).Decode(respStruct)
 		nameVideo := respStruct.GetAllVideoWithName()

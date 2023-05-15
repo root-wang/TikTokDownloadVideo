@@ -3,93 +3,18 @@ package tiktok
 import (
 	"fmt"
 	"os"
-	"reflect"
+	"regexp"
 	"strings"
 )
 
-type UserVideoReq struct {
-	DevicePlatform           string `json:"device_platform"`
-	Aid                      string `json:"aid"`
-	Channel                  string `json:"channel"`
-	SecUserId                string `json:"sec_user_id"`
-	MaxCursor                string `json:"max_cursor"`
-	LocateQuery              string `json:"locate_query"`
-	ShowLiveReplayStrategy   string `json:"show_live_replay_strategy"`
-	Count                    string `json:"count"`
-	PublishVideoStrategyType string `json:"publish_video_strategy_type"`
-	PcClientType             string `json:"pc_client_type"`
-	VersionCode              string `json:"version_code"`
-	VersionName              string `json:"version_name"`
-	CookieEnabled            string `json:"cookie_enabled"`
-	ScreenWidth              string `json:"screen_width"`
-	ScreenHeight             string `json:"screen_height"`
-	BrowserLanguage          string `json:"browser_language"`
-	BrowserPlatform          string `json:"browser_platform"`
-	BrowserName              string `json:"browser_name"`
-	BrowserVersion           string `json:"browser_version"`
-	BrowserOnline            string `json:"browser_online"`
-	EngineName               string `json:"engine_name"`
-	EngineVersion            string `json:"engine_version"`
-	OsName                   string `json:"os_name"`
-	OsVersion                string `json:"os_version"`
-	CpuCoreNum               string `json:"cpu_core_num"`
-	DeviceMemory             string `json:"device_memory"`
-	Platform                 string `json:"platform"`
-	Downlink                 string `json:"downlink"`
-	EffectiveType            string `json:"effective_type"`
-	RoundTripTime            string `json:"round_trip_time"`
-	Webid                    string `json:"webid"`
-	MsToken                  string `json:"msToken"`
-	XBogus                   string `json:"X-Bogus"`
-}
-
-func NewReq(secUserId string, videoCount string) string {
-	req := &UserVideoReq{
-		DevicePlatform:           "webapp",
-		Aid:                      "6383",
-		Channel:                  "channel_pc_web",
-		SecUserId:                secUserId,
-		MaxCursor:                "1679800007000",
-		LocateQuery:              "false",
-		ShowLiveReplayStrategy:   "1",
-		Count:                    videoCount,
-		PublishVideoStrategyType: "2",
-		PcClientType:             "1",
-		VersionCode:              "170400",
-		VersionName:              "17.4.0",
-		CookieEnabled:            "true",
-		ScreenWidth:              "2048",
-		ScreenHeight:             "1152",
-		BrowserLanguage:          "zh-CN",
-		BrowserPlatform:          "Win32",
-		BrowserName:              "Chrome",
-		BrowserVersion:           "113.0.0.0",
-		BrowserOnline:            "true",
-		EngineName:               "Blink",
-		EngineVersion:            "113.0.0.0",
-		OsName:                   "Windows",
-		OsVersion:                "10",
-		CpuCoreNum:               "16",
-		DeviceMemory:             "8",
-		Platform:                 "PC",
-		Downlink:                 videoCount,
-		EffectiveType:            "4g",
-		RoundTripTime:            "100",
-		Webid:                    "7232985271985489465",
-		MsToken:                  "HSZv7HW5SMKbSGkbRheQLWo8g2elfPZjW1l9YH1oEyhkkkdiZeY4wgInkasbEVKsf4zuwgluS9839YGX0fYL101Dd-ATKXGkaroxh5ZyRYwHHrpRVwZQbA==",
-		XBogus:                   "DFSzswVYEDTANto5ttvCdsXyYJl4",
+func UserVideos(secUserId string, videoCount string) string {
+	// https://www.douyin.com/user/MS4wLjABAAAA7xbdm1QfWD8Um6rFnrm0wVpnOI1uEHhbth1XDud_tWRxG5ZI6YUbNu9ES4uMjF0D?is_search=0&list_name=follow&nt=3
+	// 用正则表达式提取user/后面到第一个?之间的字符串
+	if strings.HasPrefix(secUserId, "https://") {
+		reg := regexp.MustCompile(`(?m)user/(.*?)\?`)
+		secUserId = reg.FindStringSubmatch(secUserId)[1]
 	}
-	var url = strings.Builder{}
-	url.WriteString("https://www.douyin.com/aweme/v1/web/aweme/post/?")
-	typ := reflect.TypeOf(*req)
-	val := reflect.ValueOf(*req)
-	num := val.NumField()
-	for i := 0; i < num; i++ {
-		val := fmt.Sprint(val.Field(i))
-		tagVal := typ.Field(i).Tag.Get("json")
-		url.WriteString(tagVal + "=" + val + "&")
-	}
-	return url.String()
+	return NewXBogusReq(secUserId, videoCount)
 }
 
 type UserVideoResp struct {
@@ -700,6 +625,7 @@ type UserVideoResp struct {
 	TimeList           interface{} `json:"time_list"`
 }
 
+// GetAllVideoWithName 获取作者视频的名字和下载地址
 func (u *UserVideoResp) GetAllVideoWithName() map[string]string {
 	videoSlice := u.AwemeList
 	descVideoplayaddr := make(map[string]string, 100)
