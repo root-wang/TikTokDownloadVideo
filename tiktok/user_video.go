@@ -14,6 +14,11 @@ func UserVideos(secUserId string, videoCount string) string {
 		reg := regexp.MustCompile(`(?m)user/(.*?)\?`)
 		secUserId = reg.FindStringSubmatch(secUserId)[1]
 	}
+	// 检测字符串是不是正整数
+	reg := regexp.MustCompile(`^\d+$`)
+	if !reg.MatchString(videoCount) {
+		panic(fmt.Errorf("视频数目必须是正整数"))
+	}
 	return NewXBogusReq(secUserId, videoCount)
 }
 
@@ -627,6 +632,10 @@ type UserVideoResp struct {
 
 // GetAllVideoWithName 获取作者视频的名字和下载地址
 func (u *UserVideoResp) GetAllVideoWithName() map[string]string {
+	if len(u.AwemeList) == 0 {
+		panic("获取视频下载地址失败")
+	}
+
 	videoSlice := u.AwemeList
 	descVideoplayaddr := make(map[string]string, 100)
 	for _, videoInfo := range videoSlice {
@@ -644,4 +653,12 @@ func (u *UserVideoResp) GetAllVideoWithName() map[string]string {
 		descVideoplayaddr[desc] = videoPlayAddr
 	}
 	return descVideoplayaddr
+}
+
+// GetAuthorNickname 获取作者昵称
+func (u *UserVideoResp) GetAuthorNickname() string {
+	if len(u.AwemeList) == 0 {
+		panic("获取作者昵称失败")
+	}
+	return u.AwemeList[0].Author.Nickname
 }

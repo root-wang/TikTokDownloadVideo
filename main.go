@@ -1,7 +1,7 @@
 /*
 * @Date: 2023-05-13 15:45:47
   - @LastEditors: root-wang && 276211640@qq.com
-  - @LastEditTime: 2023-05-15 21:57:39
+  - @LastEditTime: 2023-05-15 23:31:33
   - @FilePath: \TikTok\main.go
   - @Description: Do not edit
 */
@@ -15,6 +15,7 @@ import (
 	"os"
 	"sync"
 	"tiktok/tiktok"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -48,6 +49,12 @@ func main() {
 	user_num := len(secUserId)
 
 	for i := 0; i < user_num; i++ {
+		defer func(i int) {
+			if err := recover(); err != nil {
+				fmt.Println("第" + fmt.Sprintf("%d", i) + "个用户下载失败")
+				fmt.Println(err)
+			}
+		}(i)
 		url := tiktok.UserVideos(secUserId[i].(string), videoCount[i].(string))
 		req, _ := http.NewRequest("GET", url, nil)
 		req.Header.Set(
@@ -58,10 +65,27 @@ func main() {
 		req.Header.Set("Cookie", cookie)
 
 		h := &http.Client{}
-		resp, _ := h.Do(req)
-		defer resp.Body.Close()
 		respStruct := &tiktok.UserVideoResp{}
-		_ = json.NewDecoder(resp.Body).Decode(respStruct)
+		for {
+			resp, _ := h.Do(req)
+			if resp.StatusCode == http.StatusOK && resp.ContentLength == 0 {
+				fmt.Println("请求失败 2 秒后重试")
+				time.Sleep(2 * time.Second)
+				continue
+			} else if resp.StatusCode != http.StatusOK {
+				fmt.Printf("请求失败 %d", resp.StatusCode)
+			}
+			defer resp.Body.Close()
+			_ = json.NewDecoder(resp.Body).Decode(respStruct)
+			break
+		}
+		defer func(url string) {
+			if err := recover(); err != nil {
+				fmt.Println(err)
+				fmt.Println(url)
+			}
+		}(url)
+
 		nameVideo := respStruct.GetAllVideoWithName()
 		authorName := respStruct.AwemeList[0].Author.Nickname
 		var wg = sync.WaitGroup{}
