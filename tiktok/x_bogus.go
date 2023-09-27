@@ -22,7 +22,7 @@ type XBogusReq struct {
 }
 
 func NewXBogusReq(secUserId string, videoCount string) string {
-	x_bogus_addr := viper.Get("x_bogus_addr").(string)
+	x_bogus_addr := viper.Get("x-bogus-addr").(string)
 	req := &XBogusReq{
 		DevicePlatform: "android",
 		Aid:            "1128",

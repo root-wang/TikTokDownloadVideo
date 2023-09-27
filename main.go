@@ -11,8 +11,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
+	"path"
 	"sync"
 	"tiktok/tiktok"
 	"time"
@@ -21,27 +23,32 @@ import (
 )
 
 func init() {
-	viper.SetConfigFile("./config.yaml") // 指定配置文件路径
-	viper.SetConfigName("config")        // 配置文件名称(无扩展名)
-	viper.SetConfigType("yaml")          // 如果配置文件的名称中没有扩展名，则需要配置此项
-	viper.AddConfigPath("./")            // 还可以在工作目录中查找配置
-	err := viper.ReadInConfig()          // 查找并读取配置文件
-	if err != nil {                      // 处理读取配置文件的错误
+	viper.SetConfigFile("config.yaml") // 指定配置文件路径
+	viper.SetConfigName("config")      // 配置文件名称(无扩展名)
+	viper.SetConfigType("yaml")        // 如果配置文件的名称中没有扩展名，则需要配置此项
+	viper.AddConfigPath("./")          // 还可以在工作目录中查找配置
+	err := viper.ReadInConfig()        // 查找并读取配置文件
+	if err != nil {                    // 处理读取配置文件的错误
 		panic(fmt.Errorf("fatal error config file: %s", err))
 	}
 }
 
 func main() {
 	secUserId := viper.Get("secUserId").([]interface{})
-	videoCount := viper.Get("video-nums").([]interface{})
+	videoCount := viper.Get("video-num").([]interface{})
 	if len(secUserId) != len(videoCount) {
-		panic(fmt.Errorf("作者数目和每个作者作品下载数目长度不一致"))
+		fmt.Printf("作者数目%d和每个作者作品下载数目%d长度不一致,将自动下载未指定数目作者的所有视频\n", len(secUserId), len(videoCount))
+		rest := len(secUserId) - len(videoCount)
+		downloadNum := viper.Get("download-num").(int)
+		for i := 0; i < rest; i++ {
+			videoCount = append(videoCount, fmt.Sprint(downloadNum))
+		}
 	}
 	cookie := viper.Get("cookie").(string)
 	if cookie == "" {
 		panic(fmt.Errorf("cookie不能为空"))
 	}
-	filesPath := viper.Get("filesPath").(string)
+	filesPath := viper.Get("files-path").(string)
 	if filesPath == "" {
 		panic(fmt.Errorf("下载根目录路径不能为空"))
 	}
@@ -51,7 +58,7 @@ func main() {
 	for i := 0; i < user_num; i++ {
 		defer func(i int) {
 			if err := recover(); err != nil {
-				fmt.Println("第" + fmt.Sprintf("%d", i) + "个用户下载失败")
+				fmt.Println("第" + fmt.Sprintf("%d", i+1) + "个用户下载失败")
 				fmt.Println(err)
 			}
 		}(i)
@@ -92,7 +99,8 @@ func main() {
 		fmt.Println("开始下载" + authorName + "的视频")
 		for n, add := range nameVideo {
 			wg.Add(1)
-			go download(n, add, &wg, filesPath+authorName+"\\")
+			p := path.Join(filesPath, authorName)
+			go download(n, add, &wg, p)
 		}
 		wg.Wait()
 		fmt.Println("共下载" + authorName + "的" + fmt.Sprintf("%d", len(nameVideo)) + "个视频")
@@ -101,21 +109,40 @@ func main() {
 	fmt.Println("全部下载完成")
 }
 
-var token = make(chan struct{}, 10)
+var token = make(chan struct{}, 30)
 
 func download(n string, add string, wg *sync.WaitGroup, filesPath string) {
+	// recover panic
+	defer func() {
+		if err := recover(); err != nil {
+			log.Panicln(err)
+			wg.Done()
+		}
+	}()
+
 	token <- struct{}{}
 	defer func() { <-token }()
-	resp, _ := http.Get(add + ".mp4")
-	defer resp.Body.Close()
 	// 检查filesPath是否存在
 	_, err := os.Stat(filesPath)
 	if err != nil {
 		// 创建文件夹
 		_ = os.Mkdir(filesPath, os.ModePerm)
 	}
-	out, _ := os.Create(filesPath + n + ".mp4")
+	videoPath := path.Join(filesPath, n+".mp4")
+	if _, err := os.Stat(videoPath); err == nil {
+		wg.Done()
+		return
+	}
+	out, _ := os.Create(videoPath)
 	defer out.Close()
+
+	resp, err := http.Get(add + ".mp4")
+	if err != nil {
+		fmt.Printf("下载%s失败\n", add)
+		wg.Done()
+		return
+	}
+	defer resp.Body.Close()
 	io.Copy(out, resp.Body)
 	wg.Done()
 }
