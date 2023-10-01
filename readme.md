@@ -19,8 +19,8 @@ files-path: "f:/video/go_video/"
 x-bogus-addrr: "http://127.0.0.1:8787/X-Bogus"
 
 # 下载用户的主页视频
-sec-user-id: []
-user-total-video-nums: []
+sec-user-id: ["https://www.douyin.com/user/MS4wLjABAAAA_TSEtfu-jMuD8cUNzv_OmWSdm0_x4oe7lzqJTQrn5SHt1ttKe0APnfbEjsnRL-ZS?is_search=0&list_name=follow&nt=1&showTab=like", "https://www.douyin.com/user/MS4wLjABAAAAsMo5iLPL3m1QCGKL_SGX8W_0jkvYbEEiqI26ZehrXcQ?is_search=0&list_name=follow&nt=2"]
+user-total-video-nums: ["20"]
 # 如果未指定某个用户的主页视频下载数量 则全部使用如下值
 download-num: "50"
 
