@@ -8,21 +8,18 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
-	"path"
-	"sync"
+	"strconv"
 	"tiktok/tiktok"
-	"time"
+	"tiktok/utils"
 
 	"github.com/spf13/viper"
 )
 
 func init() {
+	utils.PrintInitLogo()
 	viper.SetConfigFile("config.yaml") // 指定配置文件路径
 	viper.SetConfigName("config")      // 配置文件名称(无扩展名)
 	viper.SetConfigType("yaml")        // 如果配置文件的名称中没有扩展名，则需要配置此项
@@ -34,16 +31,8 @@ func init() {
 }
 
 func main() {
-	secUserId := viper.Get("secUserId").([]interface{})
-	videoCount := viper.Get("video-num").([]interface{})
-	if len(secUserId) != len(videoCount) {
-		fmt.Printf("作者数目%d和每个作者作品下载数目%d长度不一致,将自动下载未指定数目作者的所有视频\n", len(secUserId), len(videoCount))
-		rest := len(secUserId) - len(videoCount)
-		downloadNum := viper.Get("download-num").(int)
-		for i := 0; i < rest; i++ {
-			videoCount = append(videoCount, fmt.Sprint(downloadNum))
-		}
-	}
+
+	// 初始化配置文件
 	cookie := viper.Get("cookie").(string)
 	if cookie == "" {
 		panic(fmt.Errorf("cookie不能为空"))
@@ -51,98 +40,69 @@ func main() {
 	filesPath := viper.Get("files-path").(string)
 	if filesPath == "" {
 		panic(fmt.Errorf("下载根目录路径不能为空"))
+	} else if _, err := os.Stat(filesPath); err != nil {
+		panic(fmt.Errorf("下载根目录路径%s不存在", filesPath))
 	}
-	// 创建一个http客户端
-	user_num := len(secUserId)
 
-	for i := 0; i < user_num; i++ {
-		defer func(i int) {
-			if err := recover(); err != nil {
-				fmt.Println("第" + fmt.Sprintf("%d", i+1) + "个用户下载失败")
-				fmt.Println(err)
+	// 初始化下载用户的主页视频配置
+	secUserIds := viper.Get("sec-user-id").([]interface{})
+	videoCounts := viper.Get("user-total-video-nums").([]interface{})
+	secUserIdsStr := make([]string, len(secUserIds))
+	videoCountsStr := make([]string, len(videoCounts))
+	if len(secUserIds) != 0 {
+		log.Println("下载用户视频配置正确, 开始下载指定用户的视频")
+		if len(secUserIds) != len(videoCounts) {
+			fmt.Printf("作者数目%d和每个作者作品下载数目%d长度不一致,将自动下载未指定数目作者的所有视频\n", len(secUserIds), len(videoCounts))
+			rest := len(secUserIds) - len(videoCounts)
+			downloadNum := viper.Get("download-num").(string)
+			for i := 0; i < rest; i++ {
+				videoCounts = append(videoCounts, downloadNum)
 			}
-		}(i)
-		url := tiktok.UserVideos(secUserId[i].(string), videoCount[i].(string))
-		req, _ := http.NewRequest("GET", url, nil)
-		req.Header.Set(
-			"User-Agent",
-			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
-		)
-		req.Header.Set("Referer", "https://www.douyin.com/")
-		req.Header.Set("Cookie", cookie)
-
-		h := &http.Client{}
-		respStruct := &tiktok.UserVideoResp{}
-		for {
-			resp, _ := h.Do(req)
-			if resp.StatusCode == http.StatusOK && resp.ContentLength == 0 {
-				fmt.Println("请求失败 2 秒后重试")
-				time.Sleep(2 * time.Second)
-				continue
-			} else if resp.StatusCode != http.StatusOK {
-				fmt.Printf("请求失败 %d", resp.StatusCode)
-			}
-			defer resp.Body.Close()
-			_ = json.NewDecoder(resp.Body).Decode(respStruct)
-			break
 		}
-		defer func(url string) {
-			if err := recover(); err != nil {
-				fmt.Println(err)
-				fmt.Println(url)
-			}
-		}(url)
-
-		nameVideo := respStruct.GetAllVideoWithName()
-		authorName := respStruct.AwemeList[0].Author.Nickname
-		var wg = sync.WaitGroup{}
-		fmt.Println("开始下载" + authorName + "的视频")
-		for n, add := range nameVideo {
-			wg.Add(1)
-			p := path.Join(filesPath, authorName)
-			go download(n, add, &wg, p)
+		// Convert secUserIds and videoCounts to []string type
+		for i, v := range secUserIds {
+			secUserIdsStr[i] = fmt.Sprintf("%v", v)
 		}
-		wg.Wait()
-		fmt.Println("共下载" + authorName + "的" + fmt.Sprintf("%d", len(nameVideo)) + "个视频")
-		fmt.Println("下载完成")
-	}
-	fmt.Println("全部下载完成")
-}
-
-var token = make(chan struct{}, 30)
-
-func download(n string, add string, wg *sync.WaitGroup, filesPath string) {
-	// recover panic
-	defer func() {
-		if err := recover(); err != nil {
-			log.Panicln(err)
-			wg.Done()
+		for i, v := range videoCounts {
+			videoCountsStr[i] = fmt.Sprintf("%v", v)
 		}
-	}()
+		// 下载指定用户的主页视频
+		tiktok.DownloadUserVideos(secUserIdsStr, videoCountsStr, filesPath)
+	}
 
-	token <- struct{}{}
-	defer func() { <-token }()
-	// 检查filesPath是否存在
-	_, err := os.Stat(filesPath)
-	if err != nil {
-		// 创建文件夹
-		_ = os.Mkdir(filesPath, os.ModePerm)
-	}
-	videoPath := path.Join(filesPath, n+".mp4")
-	if _, err := os.Stat(videoPath); err == nil {
-		wg.Done()
-		return
-	}
-	out, _ := os.Create(videoPath)
-	defer out.Close()
+	// 初始化下载用户的喜欢视频配置
+	favoriteSceId := viper.Get("favorite-sec-id").(string)
+	totalVideoNum := viper.Get("total-video-num").(string)
+	if favoriteSceId != "" && totalVideoNum != "" {
+		log.Println("下载用户的喜欢视频配置正确, 开始下载用户喜欢的视频")
 
-	resp, err := http.Get(add + ".mp4")
-	if err != nil {
-		fmt.Printf("下载%s失败\n", add)
-		wg.Done()
-		return
+		num, err := strconv.Atoi(totalVideoNum)
+		if err != nil {
+			panic("total-video-num参数不正确")
+		}
+		tiktok.DownloadFavoriteVideos(favoriteSceId, num, filesPath)
 	}
-	defer resp.Body.Close()
-	io.Copy(out, resp.Body)
-	wg.Done()
+	// 初始化下载用户关注的用户视频配置
+
+	followingSceId := viper.Get("following-sec-id").(string)
+	followingUserNum := viper.Get("following-user-num").(int)
+	var followingUserId string
+	if followingSceId != "" {
+		log.Println("下载用户的关注的博主视频配置正确, 开始下载关注博主的全部视频")
+		println("默认下载用户的所有主页视频")
+
+		if followingSceId == "self" {
+			followingUserId = tiktok.UserSelfUid()
+			followingSceId = ""
+		}
+
+		var userIds []string
+		var userVideoCounts []string
+		userIds = tiktok.FollowingUsersSecId(followingSceId, followingUserId, followingUserNum)
+		for _, _ = range userIds {
+			userVideoCounts = append(userVideoCounts, "1000")
+		}
+		tiktok.DownloadUserVideos(userIds, userVideoCounts, filesPath)
+	}
+
 }

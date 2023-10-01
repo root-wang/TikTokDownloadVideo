@@ -1,57 +1,96 @@
 package tiktok
 
-type UserFollowingReq struct {
-	DevicePlatform    string `json:"device_platform"`
-	Aid               string `json:"aid"`
-	Channel           string `json:"channel"`
-	UserId            string `json:"user_id"`
-	SecUserId         string `json:"sec_user_id"`
-	Offset            string `json:"offset"`
-	MinTime           string `json:"min_time"`
-	MaxTime           string `json:"max_time"`
-	Count             string `json:"count"`
-	SourceType        string `json:"source_type"`
-	GpsAccess         string `json:"gps_access"`
-	AddressBookAccess string `json:"address_book_access"`
-	IsTop             string `json:"is_top"`
-	PcClientType      string `json:"pc_client_type"`
-	VersionCode       string `json:"version_code"`
-	VersionName       string `json:"version_name"`
-	CookieEnabled     string `json:"cookie_enabled"`
-	ScreenWidth       string `json:"screen_width"`
-	ScreenHeight      string `json:"screen_height"`
-	BrowserLanguage   string `json:"browser_language"`
-	BrowserPlatform   string `json:"browser_platform"`
-	BrowserName       string `json:"browser_name"`
-	BrowserVersion    string `json:"browser_version"`
-	BrowserOnline     string `json:"browser_online"`
-	EngineName        string `json:"engine_name"`
-	EngineVersion     string `json:"engine_version"`
-	OsName            string `json:"os_name"`
-	OsVersion         string `json:"os_version"`
-	CpuCoreNum        string `json:"cpu_core_num"`
-	DeviceMemory      string `json:"device_memory"`
-	Platform          string `json:"platform"`
-	Downlink          string `json:"downlink"`
-	EffectiveType     string `json:"effective_type"`
-	RoundTripTime     string `json:"round_trip_time"`
-	Webid             string `json:"webid"`
-	MsToken           string `json:"msToken"`
-	XBogus            string `json:"X-Bogus"`
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"tiktok/utils"
+	"time"
+)
+
+type FollowingXBogusReq struct {
+	DevicePlatform string `json:"device_platform"`
+	Aid            string `json:"aid"`
+	UserId         string `json:"user_id"`
+	SecUserId      string `json:"sec_user_id"`
+	MaxTime        string `json:"max_time"`
+	MinTime        string `json:"min_time"`
+	Offset         string `json:"offset"`
+	Count          string `json:"count"`
+	SourceType     string `json:"source_type"`
 }
 
-func GetAllFollowing(totalNum int) (nameSecId map[string]string) {
-	nums := totalNum / 20
-	for i := 0; i < nums; i++ {
-
+// 获取用户关注列表 返回用户的secId
+func FollowingUsersSecId(secUserId string, UserId string, count int) []string {
+	req := &FollowingXBogusReq{
+		DevicePlatform: "android",
+		Aid:            "6383",
+		UserId:         UserId,
+		SecUserId:      secUserId,
+		Offset:         "0",
+		MinTime:        "0",
+		MaxTime:        "0",
+		Count:          "20",
+		SourceType:     "4",
 	}
-	return
+
+	xBogusUrl := utils.ConcatXBogusUrlString(req, FOLLOWINGURLPREFIX)
+	followingUserListUrl := NewXBogusReq(xBogusUrl)
+
+	followingUserReq, _ := utils.HttpNewRequest("GET", followingUserListUrl, nil)
+
+	h := &http.Client{}
+	respStruct := &UserFollowingResp{}
+
+	var userSecIds = []string{}
+	var resp *http.Response
+
+	buff := bytes.NewBuffer(make([]byte, 0, 512))
+	for {
+		resp, _ = h.Do(followingUserReq)
+		_, _ = io.Copy(buff, resp.Body)
+
+		if resp.StatusCode == http.StatusOK && resp.ContentLength == 0 {
+			fmt.Println("请求失败 2 秒后重试")
+			resp.Body.Close()
+			time.Sleep(2 * time.Second)
+			continue
+		} else if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			fmt.Printf("请求失败 %d", resp.StatusCode)
+		}
+		_ = json.NewDecoder(buff).Decode(respStruct)
+
+		for _, u := range respStruct.Followings {
+			userSecIds = append(userSecIds, u.SecUid)
+		}
+		if len(userSecIds) >= count || !respStruct.HasMore {
+			userSecIds = userSecIds[:count+1]
+			break
+		} else {
+			offset, _ := strconv.Atoi(req.Offset)
+			req.Offset = strconv.Itoa(offset + 20)
+			followingUserListUrl = NewXBogusReq(utils.ConcatXBogusUrlString(req, FOLLOWINGURLPREFIX))
+			followingUserReq, _ = utils.HttpNewRequest("GET", followingUserListUrl, nil)
+			resp.Body.Close()
+			buff.Reset()
+		}
+	}
+
+	fmt.Printf("共获取到%d个关注用户的ID 即将开始下载这些用户中%d个的主页视频\n", len(userSecIds)-1, count)
+	if count >= len(userSecIds) {
+		count = len(userSecIds)
+	}
+	return userSecIds[:count]
 }
 
 type UserFollowingResp struct {
 	Extra struct {
 		FatalItemIds []interface{} `json:"fatal_item_ids"`
-		Logid        string        `json:"logid"`
+		LogId        string        `json:"logid"`
 		Now          int64         `json:"now"`
 	} `json:"extra"`
 	Followings []struct {
@@ -177,7 +216,6 @@ type UserFollowingResp struct {
 		DpLevel                                 interface{} `json:"dp_level"`
 		DuetSetting                             int         `json:"duet_setting"`
 		EffectDetail                            interface{} `json:"effect_detail"`
-		Email                                   interface{} `json:"email"`
 		EnableNearbyVisible                     bool        `json:"enable_nearby_visible"`
 		EnableWish                              interface{} `json:"enable_wish"`
 		EnterpriseUserInfo                      interface{} `json:"enterprise_user_info"`
@@ -258,7 +296,7 @@ type UserFollowingResp struct {
 		IsVerified                   bool          `json:"is_verified"`
 		IsoCountryCode               interface{}   `json:"iso_country_code"`
 		ItemList                     interface{}   `json:"item_list"`
-		KyOnlyPredict                int           `json:"ky_only_predict"`
+		KyOnlyPredict                float64       `json:"ky_only_predict"`
 		Language                     string        `json:"language"`
 		LatestOrderTime              interface{}   `json:"latest_order_time"`
 		LifeStoryBlock               interface{}   `json:"life_story_block"`
@@ -320,13 +358,13 @@ type UserFollowingResp struct {
 		ReflowPageUid                int         `json:"reflow_page_uid"`
 		RegisterFrom                 interface{} `json:"register_from"`
 		RegisterTime                 interface{} `json:"register_time"`
-		RelationLabel                *string     `json:"relation_label"`
+		RelationLabel                interface{} `json:"relation_label"`
 		RelationShip                 interface{} `json:"relation_ship"`
 		RelativeUsers                interface{} `json:"relative_users"`
 		RemarkName                   interface{} `json:"remark_name"`
 		RoomCover                    interface{} `json:"room_cover"`
-		RoomData                     interface{} `json:"room_data"`
-		RoomId                       int         `json:"room_id"`
+		RoomData                     *string     `json:"room_data"`
+		RoomId                       int64       `json:"room_id"`
 		RoomIdStr                    interface{} `json:"room_id_str"`
 		RoomTypeTag                  interface{} `json:"room_type_tag"`
 		SchoolAuth                   interface{} `json:"school_auth"`

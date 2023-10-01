@@ -1,13 +1,51 @@
 package tiktok
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
 	"os"
+	"path"
 	"regexp"
+	"strconv"
 	"strings"
+	"sync"
+	"tiktok/utils"
+	"time"
 )
 
-func UserVideos(secUserId string, videoCount string) string {
+type UserVideoXBogusReq struct {
+	DevicePlatform string `json:"device_platform"`
+	Aid            string `json:"aid"`
+	SecUserId      string `json:"sec_user_id"`
+	MaxCursor      string `json:"max_cursor"`
+	Count          string `json:"count"`
+	VersionName    string `json:"version_name"`
+	OsVersion      string `json:"os_version"`
+}
+
+func DownloadUserVideos(secUserIds []string, videoCounts []string, filePath string) {
+	userNum := len(secUserIds)
+	for i := 0; i < userNum; i++ {
+		defer func(i int) {
+			if err := recover(); err != nil {
+				fmt.Println("第" + fmt.Sprintf("%d", i+1) + "个用户下载失败")
+				fmt.Println(err)
+			}
+		}(i)
+
+		downloadUserVideos(secUserIds[i], videoCounts[i], filePath)
+
+	}
+	fmt.Println("全部下载完成")
+}
+
+var wg sync.WaitGroup
+
+// downloadUserVideos 下载单个用户的指定数量视频
+func downloadUserVideos(secUserId string, videoCount string, filePath string) {
 	// https://www.douyin.com/user/MS4wLjABAAAA7xbdm1QfWD8Um6rFnrm0wVpnOI1uEHhbth1XDud_tWRxG5ZI6YUbNu9ES4uMjF0D?is_search=0&list_name=follow&nt=3
 	// 用正则表达式提取user/后面到第一个?之间的字符串
 	if strings.HasPrefix(secUserId, "https://") {
@@ -19,7 +57,118 @@ func UserVideos(secUserId string, videoCount string) string {
 	if !reg.MatchString(videoCount) {
 		panic(fmt.Errorf("视频数目必须是正整数"))
 	}
-	return NewXBogusReq(secUserId, videoCount)
+
+	XBogusReq := &UserVideoXBogusReq{
+		DevicePlatform: "android",
+		Aid:            "1128",
+		SecUserId:      secUserId,
+		MaxCursor:      "0",
+		Count:          "20",
+		VersionName:    "23.5.0",
+		OsVersion:      "2333",
+	}
+	url := utils.ConcatXBogusUrlString(XBogusReq, USERVIDEO)
+	url = NewXBogusReq(url)
+
+	count, _ := strconv.Atoi(videoCount)
+	req, _ := utils.HttpNewRequest("GET", url, nil)
+
+	h := &http.Client{}
+	respStruct := &UserVideoResp{}
+	var resp *http.Response
+
+	// 需要多次获取到不同时间的视频列表然后合并
+	var nameVideos = make(map[string][]string)
+	// 根据地址获取该用户的视频列表结构体
+	for {
+		resp, _ = h.Do(req)
+		if resp.StatusCode == http.StatusOK && resp.ContentLength == 0 {
+			fmt.Println("请求失败 2 秒后重试")
+			resp.Body.Close()
+			time.Sleep(2 * time.Second)
+			continue
+		} else if resp.StatusCode != http.StatusOK {
+			fmt.Printf("请求失败 %d", resp.StatusCode)
+			resp.Body.Close()
+		}
+
+		_ = json.NewDecoder(resp.Body).Decode(respStruct)
+
+		nameVideo := respStruct.GetAllVideoWithName()
+		for k, v := range nameVideo {
+			nameVideos[k] = v
+		}
+
+		if len(nameVideos) >= count || respStruct.HasMore == 0 {
+			resp.Body.Close()
+			break
+		} else {
+			XBogusReq.MaxCursor = strconv.Itoa(int(respStruct.MaxCursor))
+			url := utils.ConcatXBogusUrlString(XBogusReq, USERVIDEO)
+			url = NewXBogusReq(url)
+			req, _ = utils.HttpNewRequest("GET", url, nil)
+			resp.Body.Close()
+		}
+	}
+	authorName := respStruct.AwemeList[0].Author.Nickname
+	p := path.Join(filePath, authorName)
+	fmt.Println("开始下载 `" + authorName + "`的视频")
+	for n, adds := range nameVideos {
+		wg.Add(1)
+		go download(n, adds, &wg, p)
+	}
+
+	wg.Wait()
+	fmt.Println("共下载 `" + authorName + "` 的" + fmt.Sprintf("%d", len(nameVideos)) + "个视频")
+
+	fmt.Println("下载完成")
+
+}
+
+var token = make(chan struct{}, 10)
+
+func download(n string, adds []string, wg *sync.WaitGroup, filesPath string) {
+	// recover panic
+	defer func() {
+		if err := recover(); err != nil {
+			log.Panicln(err)
+			wg.Done()
+		}
+		<-token
+	}()
+
+	token <- struct{}{}
+	// 检查filesPath是否存在
+	_, err := os.Stat(filesPath)
+	if err != nil {
+		// 创建文件夹
+		_ = os.Mkdir(filesPath, os.ModePerm)
+	}
+	// 检查文件名称n是否合法 不合法则自动修改
+	n = utils.CheckFileVaild(n)
+	videoPath := path.Join(filesPath, n+".mp4")
+	if _, err := os.Stat(videoPath); err == nil {
+		wg.Done()
+		return
+	}
+	out, err := os.Create(videoPath)
+	if err != nil {
+		fmt.Printf("创建文件失败 名称为`%s`\n", videoPath)
+	}
+	defer out.Close()
+
+	for _, add := range adds {
+		resp, err := http.Get(add + ".mp4")
+		if err != nil {
+			fmt.Printf("下载 `%s` 失败 尝试新的视频地址\n", add)
+			continue
+		}
+		io.Copy(out, resp.Body)
+		wg.Done()
+		resp.Body.Close()
+		return
+	}
+
 }
 
 type UserVideoResp struct {
@@ -631,28 +780,20 @@ type UserVideoResp struct {
 }
 
 // GetAllVideoWithName 获取作者视频的名字和下载地址
-func (u *UserVideoResp) GetAllVideoWithName() map[string]string {
+func (u *UserVideoResp) GetAllVideoWithName() map[string][]string {
 	if len(u.AwemeList) == 0 {
-		panic("获取视频下载地址失败")
+		panic("获取视频下载地址数量为空")
 	}
 
 	videoSlice := u.AwemeList
-	descVideoplayaddr := make(map[string]string, 100)
+	descVideoPlayAddr := make(map[string][]string)
 	for _, videoInfo := range videoSlice {
 		desc := videoInfo.Desc
-		var videoPlayAddr string
-		if videoInfo.Video.PlayAddrH264.UrlList != nil {
-			videoPlayAddr = videoInfo.Video.PlayAddrH264.UrlList[0]
-		} else if videoInfo.Video.PlayAddr265.UrlList != nil {
-			videoPlayAddr = videoInfo.Video.PlayAddr265.UrlList[0]
-		} else if videoInfo.Video.PlayAddr.UrlList != nil {
-			videoPlayAddr = videoInfo.Video.PlayAddr.UrlList[0]
-		} else {
-			fmt.Fprintf(os.Stdout, "视频:%s 无法下载", desc)
-		}
-		descVideoplayaddr[desc] = videoPlayAddr
+		var urlSlice = make([]string, len(videoInfo.Video.PlayAddr.UrlList))
+		copy(urlSlice, videoInfo.Video.PlayAddr.UrlList)
+		descVideoPlayAddr[desc] = urlSlice
 	}
-	return descVideoplayaddr
+	return descVideoPlayAddr
 }
 
 // GetAuthorNickname 获取作者昵称
