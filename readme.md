@@ -15,6 +15,7 @@ cookie: ""
 files-path: "f:/video/go_video/"
 
 # 参考这个仓库 https://github.com/B1gM8c/X-Bogus
+# 安装需要的库依赖 然后在本地使用python3 server.py 启动即可
 x-bogus-addrr: "http://127.0.0.1:8787/X-Bogus"
 
 # 下载用户的主页视频
