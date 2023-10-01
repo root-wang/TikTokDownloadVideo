@@ -38,6 +38,10 @@ following-user-num: 5
 go build -o tiktok.exe
 ```
 
+个人cookie获取方式: 
+在网页端登录抖音账号,进入我的主页, 按下键盘上的F12 打开开发者工具 , 然后打开选项栏的网络 回到抖音网页按下F5刷新 在网络中上面一栏选择Fetch/XHR浏览左侧的请求列表 选择其中含有`device_platform=webapp`
+等字符的请求项,点击后再右侧的Headers中 查看请求头或者Request Headers 看到有一项是Cookie 复制后面一大串的字符即可
+
 secUserId获取方式:
 打开一个作者的 抖音主页 拿到地址栏的secUserId
 https://www.douyin.com/user/MS4wLjABAAAA7xbdm1QfWD8Um6rFnrm0wVpnOI1uEHhbth1XDud_tWRxG5ZI6YUbNu9ES4uMjF0D?is_search=0&list_name=follow&nt=3
