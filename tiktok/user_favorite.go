@@ -14,15 +14,17 @@ type UserFavoriteVideoXBogusReq struct {
 	DevicePlatform string `json:"device_platform"`
 	Aid            string `json:"aid"`
 	SecUserId      string `json:"sec_user_id"`
+	UserUid        string `json:"user_id"`
 	MaxCursor      string `json:"max_cursor"`
 	Count          string `json:"count"`
 }
 
-func DownloadFavoriteVideos(secUserId string, videoNum int, filePath string) {
+func DownloadFavoriteVideos(secUserId string, userUid string, videoNum int, filePath string) {
 	XBogusReq := &UserFavoriteVideoXBogusReq{
 		DevicePlatform: "android",
 		Aid:            "6383",
 		SecUserId:      secUserId,
+		UserUid:        userUid,
 		MaxCursor:      "0",
 		Count:          "18",
 	}

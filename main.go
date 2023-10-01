@@ -73,6 +73,7 @@ func main() {
 	// 初始化下载用户的喜欢视频配置
 	favoriteSceId := viper.Get("favorite-sec-id").(string)
 	totalVideoNum := viper.Get("total-video-num").(string)
+	var favoriteUserId string
 	if favoriteSceId != "" && totalVideoNum != "" {
 		log.Println("下载用户的喜欢视频配置正确, 开始下载用户喜欢的视频")
 
@@ -80,7 +81,14 @@ func main() {
 		if err != nil {
 			panic("total-video-num参数不正确")
 		}
-		tiktok.DownloadFavoriteVideos(favoriteSceId, num, filesPath)
+
+		// 下载token所指向用户的喜欢视频 使用user_uid
+		if favoriteSceId == "self" {
+			favoriteUserId = tiktok.UserSelfUid()
+			favoriteSceId = ""
+		}
+
+		tiktok.DownloadFavoriteVideos(favoriteSceId, favoriteUserId, num, filesPath)
 	}
 	// 初始化下载用户关注的用户视频配置
 
