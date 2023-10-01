@@ -55,3 +55,6 @@ https://www.douyin.com/user/MS4wLjABAAAA7xbdm1QfWD8Um6rFnrm0wVpnOI1uEHhbth1XDud_
     "二丫": "MS4wLjABAAAAQP1C07RU9kTmLEyniA0DYMHZBJCGO9XS8HU1Vdag0nXBi4GaYtHNpZsz5EBfZPgB"
 }
 ```
+
+## 没有GoLang开发环境的
+在右侧点击Release 下载最新的exe文件 在同一目录下创建config.yaml 复制上面示例即可
