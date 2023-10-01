@@ -15,11 +15,12 @@ cookie: ""
 files-path: "f:/video/go_video/"
 
 # 参考这个仓库 https://github.com/B1gM8c/X-Bogus
+# 安装需要的库依赖 然后在本地使用python3 server.py 启动即可
 x-bogus-addrr: "http://127.0.0.1:8787/X-Bogus"
 
 # 下载用户的主页视频
-sec-user-id: []
-user-total-video-nums: []
+sec-user-id: ["https://www.douyin.com/user/MS4wLjABAAAA_TSEtfu-jMuD8cUNzv_OmWSdm0_x4oe7lzqJTQrn5SHt1ttKe0APnfbEjsnRL-ZS?is_search=0&list_name=follow&nt=1&showTab=like", "https://www.douyin.com/user/MS4wLjABAAAAsMo5iLPL3m1QCGKL_SGX8W_0jkvYbEEiqI26ZehrXcQ?is_search=0&list_name=follow&nt=2"]
+user-total-video-nums: ["20"]
 # 如果未指定某个用户的主页视频下载数量 则全部使用如下值
 download-num: "50"
 
@@ -38,6 +39,10 @@ following-user-num: 5
 go build -o tiktok.exe
 ```
 
+个人cookie获取方式: 
+在网页端登录抖音账号,进入我的主页, 按下键盘上的F12 打开开发者工具 , 然后打开选项栏的网络 回到抖音网页按下F5刷新 在网络中上面一栏选择Fetch/XHR浏览左侧的请求列表 选择其中含有`device_platform=webapp`
+等字符的请求项,点击后再右侧的Headers中 查看请求头或者Request Headers 看到有一项是Cookie 复制后面一大串的字符即可
+
 secUserId获取方式:
 打开一个作者的 抖音主页 拿到地址栏的secUserId
 https://www.douyin.com/user/MS4wLjABAAAA7xbdm1QfWD8Um6rFnrm0wVpnOI1uEHhbth1XDud_tWRxG5ZI6YUbNu9ES4uMjF0D?is_search=0&list_name=follow&nt=3
@@ -51,3 +56,6 @@ https://www.douyin.com/user/MS4wLjABAAAA7xbdm1QfWD8Um6rFnrm0wVpnOI1uEHhbth1XDud_
     "二丫": "MS4wLjABAAAAQP1C07RU9kTmLEyniA0DYMHZBJCGO9XS8HU1Vdag0nXBi4GaYtHNpZsz5EBfZPgB"
 }
 ```
+
+## 没有GoLang开发环境的
+在右侧点击Release 下载最新的exe文件 在同一目录下创建config.yaml 复制上面示例即可
